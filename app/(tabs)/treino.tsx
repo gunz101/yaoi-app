@@ -1,27 +1,45 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useTheme } from '@/utils/theme';
 import { useFicha } from '@/hooks/useFicha';
+import { useSessaoStore } from '@/stores/sessaoStore';
+import { sessaoService } from '@/services/SessaoService';
+import { useSessao } from '@/hooks/useSessao';
+import { formatarTempo } from '@/hooks/useTimer';
 import type { FichaDeTreino, DiaDeTreino } from '@/types';
 import { fichaService } from '@/services/FichaService';
 
 const DIAS_SEMANA = ['', 'Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-const DIAS_CURTO = ['', 'Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 export default function TreinoScreen() {
   const { colors } = useTheme();
   const router = useRouter();
   const { fichas, listarFichas } = useFicha();
+  const { iniciarSessao } = useSessao();
+  const sessaoAtivaId = useSessaoStore((s) => s.sessaoAtivaId);
+  const tempoDecorrido = useSessaoStore((s) => s.tempoDecorrido);
   const [fichaAtiva, setFichaAtiva] = useState<FichaDeTreino | null>(null);
   const [diasHoje, setDiasHoje] = useState<DiaDeTreino[]>([]);
+  const [iniciando, setIniciando] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       listarFichas();
+      // Check for active session on focus
+      checkSessaoAtiva();
     }, [])
   );
+
+  async function checkSessaoAtiva() {
+    if (!useSessaoStore.getState().sessaoAtivaId) {
+      const sessao = await sessaoService.recuperarSessaoAtiva();
+      if (sessao) {
+        useSessaoStore.getState().setSessaoAtiva(sessao.id);
+      }
+    }
+  }
 
   useEffect(() => {
     async function carregarDiaHoje() {
@@ -34,7 +52,6 @@ export default function TreinoScreen() {
       setFichaAtiva(ativa);
       const fichaComDias = await fichaService.obterFichaComDias(ativa.id);
       if (fichaComDias) {
-        // JS: 0=Dom, 1=Seg... Schema: 1=Dom, 2=Seg...
         const hoje = new Date().getDay() + 1;
         const diasDeHoje = fichaComDias.dias.filter((d) => d.diaDaSemana === hoje);
         setDiasHoje(diasDeHoje);
@@ -43,14 +60,24 @@ export default function TreinoScreen() {
     carregarDiaHoje();
   }, [fichas]);
 
+  async function handleIniciarSessao(diaId: string) {
+    try {
+      setIniciando(true);
+      const sessao = await iniciarSessao(diaId);
+      router.push(`/sessao/${sessao.id}`);
+    } catch (e) {
+      // Error handled by hook
+    } finally {
+      setIniciando(false);
+    }
+  }
+
   if (!fichaAtiva) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.center}>
           <Ionicons name="barbell-outline" size={64} color={colors.textSecondary} />
-          <Text style={[styles.emptyTitle, { color: colors.text }]}>
-            Sem ficha ativa
-          </Text>
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>Sem ficha ativa</Text>
           <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
             Crie uma ficha de treino para começar
           </Text>
@@ -74,36 +101,63 @@ export default function TreinoScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.scrollContent}
     >
+      {/* Active session banner */}
+      {sessaoAtivaId && (
+        <Pressable
+          onPress={() => router.push(`/sessao/${sessaoAtivaId}`)}
+          style={[styles.activeBanner, { backgroundColor: colors.success }]}
+        >
+          <Ionicons name="pulse" size={20} color="#fff" />
+          <Text style={styles.activeBannerText}>
+            Sessão em andamento — {formatarTempo(tempoDecorrido)}
+          </Text>
+          <Ionicons name="chevron-forward" size={18} color="#fff" />
+        </Pressable>
+      )}
+
       {/* Header */}
       <View style={styles.header}>
-        <Text style={[styles.greeting, { color: colors.textSecondary }]}>
-          {diaSemanaHoje}
-        </Text>
-        <Text style={[styles.fichaName, { color: colors.text }]}>
-          {fichaAtiva.nome}
-        </Text>
+        <Text style={[styles.greeting, { color: colors.textSecondary }]}>{diaSemanaHoje}</Text>
+        <Text style={[styles.fichaName, { color: colors.text }]}>{fichaAtiva.nome}</Text>
       </View>
 
       {diasHoje.length > 0 ? (
         diasHoje.map((dia) => (
-          <Pressable
+          <View
             key={dia.id}
-            onPress={() => router.push(`/ficha/${fichaAtiva.id}`)}
             style={[styles.diaCard, { backgroundColor: colors.card, borderColor: colors.border }]}
           >
-            <View style={[styles.diaIcon, { backgroundColor: colors.primaryLight }]}>
-              <Ionicons name="barbell" size={24} color={colors.primary} />
-            </View>
-            <View style={styles.diaInfo}>
-              <Text style={[styles.diaNome, { color: colors.text }]}>{dia.nome}</Text>
-              <Text style={[styles.diaGrupos, { color: colors.textSecondary }]}>
-                {(dia.gruposMuscularesFoco as string[]).join(', ') || 'Treino geral'}
-              </Text>
-            </View>
-            <View style={[styles.startButton, { backgroundColor: colors.primary }]}>
-              <Ionicons name="play" size={16} color="#fff" />
-            </View>
-          </Pressable>
+            <Pressable
+              onPress={() => router.push(`/ficha/${fichaAtiva.id}`)}
+              style={styles.diaCardContent}
+            >
+              <View style={[styles.diaIcon, { backgroundColor: colors.primaryLight }]}>
+                <Ionicons name="barbell" size={24} color={colors.primary} />
+              </View>
+              <View style={styles.diaInfo}>
+                <Text style={[styles.diaNome, { color: colors.text }]}>{dia.nome}</Text>
+                <Text style={[styles.diaGrupos, { color: colors.textSecondary }]}>
+                  {(dia.gruposMuscularesFoco as string[]).join(', ') || 'Treino geral'}
+                </Text>
+              </View>
+            </Pressable>
+            {!sessaoAtivaId && (
+              <Pressable
+                onPress={() => handleIniciarSessao(dia.id)}
+                disabled={iniciando}
+                style={[styles.iniciarButton, { backgroundColor: colors.primary }]}
+              >
+                {iniciando ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="play" size={16} color="#fff" />
+                    <Text style={styles.iniciarText}>Iniciar Sessão</Text>
+                  </>
+                )}
+              </Pressable>
+            )}
+          </View>
         ))
       ) : (
         <View style={[styles.restCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -152,16 +206,27 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   ctaText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  activeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  activeBannerText: { flex: 1, color: '#fff', fontSize: 15, fontWeight: '600' },
   header: { marginBottom: 20 },
   greeting: { fontSize: 15, fontWeight: '500' },
   fichaName: { fontSize: 26, fontWeight: '800', marginTop: 4 },
   diaCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
     padding: 16,
     borderRadius: 14,
     borderWidth: 1,
     marginBottom: 12,
+  },
+  diaCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   diaIcon: {
     width: 48,
@@ -174,13 +239,17 @@ const styles = StyleSheet.create({
   diaInfo: { flex: 1 },
   diaNome: { fontSize: 17, fontWeight: '600' },
   diaGrupos: { fontSize: 13, marginTop: 2, textTransform: 'capitalize' },
-  startButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  iniciarButton: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginTop: 12,
   },
+  iniciarText: { color: '#fff', fontSize: 15, fontWeight: '600' },
   restCard: {
     alignItems: 'center',
     padding: 32,

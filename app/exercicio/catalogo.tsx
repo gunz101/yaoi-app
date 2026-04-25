@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, Stack } from 'expo-router';
+import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@/utils/theme';
 import { useCatalogo } from '@/hooks/useCatalogo';
 import { ExercicioCard } from '@/components/ExercicioCard';
@@ -33,6 +33,7 @@ const FILTROS_GRUPO: { valor: GrupoMuscular | ''; nome: string }[] = [
 export default function CatalogoScreen() {
   const { colors } = useTheme();
   const router = useRouter();
+  const { diaId } = useLocalSearchParams<{ diaId?: string }>();
   const {
     exercicios,
     termoBusca,
@@ -135,7 +136,7 @@ export default function CatalogoScreen() {
               renderItem={({ item }: { item: Exercicio }) => (
                 <ExercicioCard
                   exercicio={item}
-                  onPress={() => router.push(`/exercicio/${item.id}`)}
+                  onPress={() => router.push(`/exercicio/${item.id}${diaId ? `?diaId=${diaId}` : ''}`)}
                 />
               )}
               estimatedItemSize={80}

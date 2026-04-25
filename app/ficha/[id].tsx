@@ -173,7 +173,7 @@ export default function FichaDetalheScreen() {
                     ))
                   )}
                   <Pressable
-                    onPress={() => router.push('/exercicio/catalogo')}
+                    onPress={() => router.push(`/exercicio/catalogo?diaId=${dia.id}`)}
                     style={[styles.addExButton, { borderColor: colors.primary }]}
                   >
                     <Ionicons name="add" size={18} color={colors.primary} />

@@ -44,6 +44,8 @@ export default function RootLayout() {
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="sessao/[id]" />
+        <Stack.Screen name="sessao/resumo" />
       </Stack>
     </>
   );

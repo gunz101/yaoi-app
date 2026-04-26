@@ -22,8 +22,7 @@ USAR EM CASA (mesma rede Wi-Fi):
 USAR FORA DE CASA (academia, 4G):
 1. Clique duas vezes em "iniciar-tunnel.bat"
 2. No celular, abra Expo Go - o projeto aparece na lista
-3. Deixe o PC ligado em casa
-
+3. Hosteie no pc
 IMAGENS DOS EXERCICIOS:
 - Na primeira vez, abra o app e va em Perfil > Configuracoes > "Baixar todas as imagens"
 - Isso salva as imagens no celular (funciona offline depois)

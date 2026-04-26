@@ -30,4 +30,6 @@ Avisos:
 - Nao desinstale o Expo Go (perde os dados do app)
 - O PC precisa estar ligado para o app funcionar
 - Se mudar de rede Wi-Fi, use o modo tunnel (iniciar-tunnel.bat)
-eu nem sei se no android funciona pq ninguem aqui em casa tem android e eu perdi meu motorola veio
+
+  
+- eu nem sei se no android funciona pq ninguem aqui em casa tem android e eu perdi meu motorola veio

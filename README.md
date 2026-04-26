@@ -1,6 +1,5 @@
 ========================================
-  Yaoi - Gym Tracker
-  Guia de Instalacao e Uso
+pra usar
 ========================================
 
 REQUISITOS:
@@ -17,7 +16,6 @@ PRIMEIRO USO (no PC novo):
 USAR EM CASA (mesma rede Wi-Fi):
 1. Clique duas vezes em "iniciar.bat"
 2. No celular, abra Expo Go e escaneie o QR code
-3. Pronto!
 
 USAR FORA DE CASA (academia, 4G):
 1. Clique duas vezes em "iniciar-tunnel.bat"
@@ -28,7 +26,8 @@ IMAGENS DOS EXERCICIOS:
 - Isso salva as imagens no celular (funciona offline depois)
 - Precisa estar na mesma rede Wi-Fi do PC para baixar
 
-DICAS:
+Avisos:
 - Nao desinstale o Expo Go (perde os dados do app)
 - O PC precisa estar ligado para o app funcionar
 - Se mudar de rede Wi-Fi, use o modo tunnel (iniciar-tunnel.bat)
+eu nem sei se no android funciona pq ninguem aqui em casa tem android e eu perdi meu motorola veio

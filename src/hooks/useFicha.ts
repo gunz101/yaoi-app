@@ -27,6 +27,12 @@ interface UseFichaReturn {
     exercicioId: string,
     config: ConfigExercicio
   ) => Promise<void>;
+  editarExercicioNoPlano: (
+    exercicioNoPlanoId: string,
+    config: Partial<ConfigExercicio>
+  ) => Promise<void>;
+  removerExercicio: (exercicioNoPlanoId: string) => Promise<void>;
+  duplicarFicha: (fichaId: string) => Promise<FichaDeTreino>;
   reordenarExercicios: (diaId: string, novaOrdem: string[]) => Promise<void>;
   carregarExerciciosDoDia: (diaId: string) => Promise<void>;
   adicionarDia: (fichaId: string, dia: DiaDeTreinoInput) => Promise<void>;
@@ -151,6 +157,37 @@ export function useFicha(): UseFichaReturn {
     return fichaService.obterHistoricoVersoes(fichaId);
   }, []);
 
+  const editarExercicioNoPlano = useCallback(
+    async (exercicioNoPlanoId: string, config: Partial<ConfigExercicio>) => {
+      await fichaService.editarExercicioNoPlano(exercicioNoPlanoId, config);
+      if (fichaAtual) {
+        const atualizada = await fichaService.obterFichaComDias(fichaAtual.id);
+        setFichaAtual(atualizada);
+      }
+    },
+    [fichaAtual]
+  );
+
+  const removerExercicio = useCallback(
+    async (exercicioNoPlanoId: string) => {
+      await fichaService.removerExercicioDoPlano(exercicioNoPlanoId);
+      if (fichaAtual) {
+        const atualizada = await fichaService.obterFichaComDias(fichaAtual.id);
+        setFichaAtual(atualizada);
+      }
+    },
+    [fichaAtual]
+  );
+
+  const duplicarFichaHook = useCallback(
+    async (fichaId: string) => {
+      const novaFicha = await fichaService.duplicarFicha(fichaId);
+      await listarFichas();
+      return novaFicha;
+    },
+    [listarFichas]
+  );
+
   return {
     fichas,
     fichaAtual,
@@ -163,6 +200,9 @@ export function useFicha(): UseFichaReturn {
     excluirFicha,
     selecionarFicha,
     adicionarExercicio,
+    editarExercicioNoPlano,
+    removerExercicio,
+    duplicarFicha: duplicarFichaHook,
     reordenarExercicios,
     carregarExerciciosDoDia,
     adicionarDia,

@@ -7,6 +7,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
@@ -25,11 +26,26 @@ export default function FichaDetalheScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { colors } = useTheme();
   const router = useRouter();
-  const { fichaAtual, selecionarFicha, excluirFicha, carregando } = useFicha();
+  const {
+    fichaAtual,
+    selecionarFicha,
+    excluirFicha,
+    editarExercicioNoPlano,
+    removerExercicio,
+    carregando,
+  } = useFicha();
   const [exerciciosPorDia, setExerciciosPorDia] = useState<
     Record<string, ExercicioComNome[]>
   >({});
   const [diaExpandido, setDiaExpandido] = useState<string | null>(null);
+  const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({
+    series: '',
+    reps: '',
+    carga: '',
+    descanso: '',
+  });
+  const [salvandoEdit, setSalvandoEdit] = useState(false);
 
   useEffect(() => {
     if (id) selecionarFicha(id);
@@ -69,6 +85,57 @@ export default function FichaDetalheScreen() {
               await excluirFicha(id);
               router.back();
             }
+          },
+        },
+      ]
+    );
+  };
+
+  const iniciarEdicao = (ex: ExercicioComNome) => {
+    setEditandoId(ex.id);
+    setEditForm({
+      series: String(ex.seriesPlanejadas),
+      reps: String(ex.repeticoesAlvo),
+      carga: String(ex.cargaSugerida),
+      descanso: String(ex.tempoDescanso),
+    });
+  };
+
+  const salvarEdicao = async () => {
+    if (!editandoId) return;
+    const s = parseInt(editForm.series, 10);
+    const r = parseInt(editForm.reps, 10);
+    const c = parseFloat(editForm.carga);
+    const d = parseInt(editForm.descanso, 10);
+    if (isNaN(s) || s <= 0) { Alert.alert('Erro', 'Séries inválidas'); return; }
+    if (isNaN(r) || r <= 0) { Alert.alert('Erro', 'Repetições inválidas'); return; }
+    try {
+      setSalvandoEdit(true);
+      await editarExercicioNoPlano(editandoId, {
+        series: s,
+        repeticoesAlvo: r,
+        cargaSugerida: isNaN(c) ? 0 : c,
+        tempoDescanso: isNaN(d) ? 60 : d,
+      });
+      setEditandoId(null);
+    } catch (e) {
+      Alert.alert('Erro', String(e));
+    } finally {
+      setSalvandoEdit(false);
+    }
+  };
+
+  const handleRemoverExercicio = (ex: ExercicioComNome) => {
+    Alert.alert(
+      'Remover Exercício',
+      `Remover "${ex.nomeExercicio}" deste dia?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Remover',
+          style: 'destructive',
+          onPress: async () => {
+            await removerExercicio(ex.id);
           },
         },
       ]
@@ -153,24 +220,100 @@ export default function FichaDetalheScreen() {
                       Nenhum exercício adicionado
                     </Text>
                   ) : (
-                    exsDoDia.map((ex, idx) => (
-                      <View
-                        key={ex.id}
-                        style={[styles.exRow, { borderTopColor: colors.border }]}
-                      >
-                        <Text style={[styles.exOrdem, { color: colors.textSecondary }]}>
-                          {idx + 1}
-                        </Text>
-                        <View style={styles.exInfo}>
-                          <Text style={[styles.exNome, { color: colors.text }]}>
-                            {ex.nomeExercicio}
-                          </Text>
-                          <Text style={[styles.exConfig, { color: colors.textSecondary }]}>
-                            {ex.seriesPlanejadas}×{ex.repeticoesAlvo} · {ex.cargaSugerida}kg · {ex.tempoDescanso}s descanso
-                          </Text>
+                    exsDoDia.map((ex, idx) => {
+                      const isEditing = editandoId === ex.id;
+                      return (
+                        <View
+                          key={ex.id}
+                          style={[styles.exRow, { borderTopColor: colors.border }]}
+                        >
+                          <View style={styles.exMainRow}>
+                            <Text style={[styles.exOrdem, { color: colors.textSecondary }]}>
+                              {idx + 1}
+                            </Text>
+                            <View style={styles.exInfo}>
+                              <Text style={[styles.exNome, { color: colors.text }]}>
+                                {ex.nomeExercicio}
+                              </Text>
+                              {!isEditing && (
+                                <Text style={[styles.exConfig, { color: colors.textSecondary }]}>
+                                  {ex.seriesPlanejadas}×{ex.repeticoesAlvo} · {ex.cargaSugerida}kg · {ex.tempoDescanso}s descanso
+                                </Text>
+                              )}
+                            </View>
+                            {!isEditing && (
+                              <View style={styles.exActions}>
+                                <Pressable onPress={() => iniciarEdicao(ex)} hitSlop={8}>
+                                  <Ionicons name="pencil-outline" size={18} color={colors.primary} />
+                                </Pressable>
+                                <Pressable onPress={() => handleRemoverExercicio(ex)} hitSlop={8}>
+                                  <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                                </Pressable>
+                              </View>
+                            )}
+                          </View>
+                          {isEditing && (
+                            <View style={styles.editContainer}>
+                              <View style={styles.editGrid}>
+                                <View style={styles.editItem}>
+                                  <Text style={[styles.editLabel, { color: colors.textSecondary }]}>Séries</Text>
+                                  <TextInput
+                                    style={[styles.editInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
+                                    value={editForm.series}
+                                    onChangeText={(t) => setEditForm((p) => ({ ...p, series: t }))}
+                                    keyboardType="number-pad"
+                                  />
+                                </View>
+                                <View style={styles.editItem}>
+                                  <Text style={[styles.editLabel, { color: colors.textSecondary }]}>Reps</Text>
+                                  <TextInput
+                                    style={[styles.editInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
+                                    value={editForm.reps}
+                                    onChangeText={(t) => setEditForm((p) => ({ ...p, reps: t }))}
+                                    keyboardType="number-pad"
+                                  />
+                                </View>
+                                <View style={styles.editItem}>
+                                  <Text style={[styles.editLabel, { color: colors.textSecondary }]}>Carga</Text>
+                                  <TextInput
+                                    style={[styles.editInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
+                                    value={editForm.carga}
+                                    onChangeText={(t) => setEditForm((p) => ({ ...p, carga: t }))}
+                                    keyboardType="decimal-pad"
+                                  />
+                                </View>
+                                <View style={styles.editItem}>
+                                  <Text style={[styles.editLabel, { color: colors.textSecondary }]}>Desc.(s)</Text>
+                                  <TextInput
+                                    style={[styles.editInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
+                                    value={editForm.descanso}
+                                    onChangeText={(t) => setEditForm((p) => ({ ...p, descanso: t }))}
+                                    keyboardType="number-pad"
+                                  />
+                                </View>
+                              </View>
+                              <View style={styles.editButtons}>
+                                <Pressable
+                                  onPress={() => setEditandoId(null)}
+                                  style={[styles.editBtn, { borderColor: colors.border }]}
+                                >
+                                  <Text style={[styles.editBtnText, { color: colors.textSecondary }]}>Cancelar</Text>
+                                </Pressable>
+                                <Pressable
+                                  onPress={salvarEdicao}
+                                  disabled={salvandoEdit}
+                                  style={[styles.editBtn, styles.editBtnPrimary, { backgroundColor: colors.primary, opacity: salvandoEdit ? 0.6 : 1 }]}
+                                >
+                                  <Text style={[styles.editBtnText, { color: '#fff' }]}>
+                                    {salvandoEdit ? 'Salvando...' : 'Salvar'}
+                                  </Text>
+                                </Pressable>
+                              </View>
+                            </View>
+                          )}
                         </View>
-                      </View>
-                    ))
+                      );
+                    })
                   )}
                   <Pressable
                     onPress={() => router.push(`/exercicio/catalogo?diaId=${dia.id}`)}
@@ -230,15 +373,59 @@ const styles = StyleSheet.create({
   exerciciosList: { paddingHorizontal: 14, paddingBottom: 14 },
   emptyExs: { fontSize: 14, fontStyle: 'italic', paddingVertical: 8 },
   exRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingVertical: 10,
     borderTopWidth: 1,
+  },
+  exMainRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   exOrdem: { fontSize: 14, fontWeight: '700', width: 24 },
   exInfo: { flex: 1 },
   exNome: { fontSize: 15, fontWeight: '500' },
   exConfig: { fontSize: 12, marginTop: 2 },
+  exActions: {
+    flexDirection: 'row',
+    gap: 14,
+    paddingLeft: 8,
+  },
+  editContainer: {
+    marginTop: 10,
+    paddingLeft: 24,
+  },
+  editGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  editItem: { width: '22%' },
+  editLabel: { fontSize: 11, fontWeight: '500', marginBottom: 4 },
+  editInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    fontSize: 15,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  editButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
+  editBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  editBtnPrimary: {
+    borderWidth: 0,
+  },
+  editBtnText: { fontSize: 14, fontWeight: '600' },
   addExButton: {
     flexDirection: 'row',
     alignItems: 'center',

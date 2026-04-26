@@ -35,18 +35,29 @@ export class ExercicioService {
    */
   async carregarCatalogoLocal(): Promise<Exercicio[]> {
     // Verificar se já carregou
+    // Verificar se já carregou a versão completa (870+)
     const existentes = await db
       .select()
       .from(exercicios)
-      .where(eq(exercicios.fonteOrigem, 'free_exercise_db'))
-      .limit(1);
+      .where(eq(exercicios.fonteOrigem, 'free_exercise_db'));
 
-    if (existentes.length > 0) {
+    // Se já tem 100+ exercícios, está com a DB completa
+    if (existentes.length > 100) {
       return db.select().from(exercicios);
     }
 
-    // Carregar JSON do asset
-    const dadosJSON: ExercicioJSON[] = require('../../assets/data/exercises-sample.json');
+    // Se tem menos de 100, deletar os antigos e recarregar
+    if (existentes.length > 0) {
+      // Usar raw SQL para desabilitar FK e deletar
+      const { openDatabaseSync } = await import('expo-sqlite');
+      const rawDb = openDatabaseSync('yaoi.db');
+      rawDb.execSync('PRAGMA foreign_keys = OFF;');
+      rawDb.execSync("DELETE FROM exercicios WHERE fonte_origem = 'free_exercise_db';");
+      rawDb.execSync('PRAGMA foreign_keys = ON;');
+    }
+
+    // Carregar JSON do asset — Free Exercise DB completa (870+ exercícios)
+    const dadosJSON: ExercicioJSON[] = require('../../assets/free-exercise-db/dist/exercises.json');
 
     const agora = new Date();
 
@@ -64,7 +75,7 @@ export class ExercicioService {
         forca: item.force ?? null,
         mecanica: item.mechanic ?? null,
         categoria: item.category ?? null,
-        imagensLocais: item.images ?? [],
+        imagensLocais: (item.images ?? []).map((img) => `exercises/${img}`),
         gifURL: null,
         gifCacheLocal: null,
         ehPersonalizado: false,

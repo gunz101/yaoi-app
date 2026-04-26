@@ -14,6 +14,7 @@ import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import { useTheme } from '@/utils/theme';
 import { exercicioService } from '@/services/ExercicioService';
 import { fichaService } from '@/services/FichaService';
+import { ExerciseImageSlideshow } from '@/components/ExerciseImageSlideshow';
 import type { Exercicio } from '@/types';
 
 export default function ExercicioDetalheScreen() {
@@ -108,17 +109,9 @@ export default function ExercicioDetalheScreen() {
         style={[styles.container, { backgroundColor: colors.background }]}
         contentContainerStyle={styles.content}
       >
-        {/* Hero */}
+        {/* Hero with images */}
         <View style={[styles.heroCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          {exercicio.gifURL ? (
-            <View style={[styles.heroIcon, { backgroundColor: colors.primaryLight }]}>
-              <Text style={{ fontSize: 14, color: colors.textSecondary }}>GIF</Text>
-            </View>
-          ) : (
-            <View style={[styles.heroIcon, { backgroundColor: colors.primaryLight }]}>
-              <Ionicons name="barbell" size={40} color={colors.primary} />
-            </View>
-          )}
+          <ExerciseImageSlideshow images={(exercicio.imagensLocais as string[]) ?? []} height={240} />
           <Text style={[styles.heroName, { color: colors.text }]}>{exercicio.nome}</Text>
           {exercicio.ehPersonalizado && (
             <View style={[styles.customBadge, { backgroundColor: colors.accent }]}>

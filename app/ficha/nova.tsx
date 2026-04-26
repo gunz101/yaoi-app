@@ -102,8 +102,9 @@ export default function NovaFichaScreen() {
         diaDaSemana: d.diaDaSemana,
         gruposMuscularesFoco: d.grupos,
       }));
-      await criarFicha(nomeFicha.trim(), diasInput);
-      router.back();
+      const ficha = await criarFicha(nomeFicha.trim(), diasInput);
+      // Navigate to the new ficha so user can add exercises
+      router.replace(`/ficha/${ficha.id}`);
     } catch (e) {
       console.error('Erro ao criar ficha:', e);
       Alert.alert('Erro', String(e));
@@ -218,6 +219,14 @@ export default function NovaFichaScreen() {
                     );
                   })}
                 </View>
+
+                {/* Hint: exercises can be added after creation */}
+                <View style={[styles.exerciseHint, { borderColor: colors.border }]}>
+                  <Ionicons name="information-circle-outline" size={16} color={colors.textSecondary} />
+                  <Text style={[styles.exerciseHintText, { color: colors.textSecondary }]}>
+                    Exercícios podem ser adicionados após criar a ficha
+                  </Text>
+                </View>
               </View>
             );
           })}
@@ -276,6 +285,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   grupoChipText: { fontSize: 13, fontWeight: '500' },
+  exerciseHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+  },
+  exerciseHintText: { fontSize: 12, flex: 1 },
   saveButton: {
     flexDirection: 'row',
     alignItems: 'center',

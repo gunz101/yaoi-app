@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Pressable,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,18 +14,36 @@ import { useTheme } from '@/utils/theme';
 import { useFicha } from '@/hooks/useFicha';
 import type { FichaDeTreino } from '@/types';
 
-const DIAS_SEMANA = ['', 'Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-
 export default function FichasScreen() {
   const { colors, isDark } = useTheme();
   const router = useRouter();
-  const { fichas, carregando, listarFichas } = useFicha();
+  const { fichas, carregando, listarFichas, duplicarFicha } = useFicha();
 
   useFocusEffect(
     useCallback(() => {
       listarFichas();
     }, [])
   );
+
+  const handleDuplicar = (ficha: FichaDeTreino) => {
+    Alert.alert(
+      'Duplicar Ficha',
+      `Criar uma cópia de "${ficha.nome}"?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Duplicar',
+          onPress: async () => {
+            try {
+              await duplicarFicha(ficha.id);
+            } catch (e) {
+              Alert.alert('Erro', String(e));
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const renderFicha = ({ item }: { item: FichaDeTreino }) => (
     <Pressable
@@ -45,7 +64,17 @@ export default function FichasScreen() {
             {item.ativa ? '🟢 Ativa' : '⚪ Inativa'}
           </Text>
         </View>
-        <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+        <Pressable
+          onPress={() => handleDuplicar(item)}
+          hitSlop={10}
+          style={({ pressed }) => [
+            styles.duplicateBtn,
+            { backgroundColor: colors.primaryLight, opacity: pressed ? 0.6 : 1 },
+          ]}
+        >
+          <Ionicons name="copy-outline" size={18} color={colors.primary} />
+        </Pressable>
+        <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} style={{ marginLeft: 8 }} />
       </View>
     </Pressable>
   );
@@ -115,6 +144,13 @@ const styles = StyleSheet.create({
   fichaInfo: { flex: 1 },
   fichaNome: { fontSize: 17, fontWeight: '600' },
   fichaData: { fontSize: 13, marginTop: 2 },
+  duplicateBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   fab: {
     position: 'absolute',
     bottom: 24,

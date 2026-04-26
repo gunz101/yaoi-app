@@ -274,6 +274,130 @@ export class FichaService {
   }
 
   /**
+   * Edita a configuração de um exercício no plano (séries, repetições, carga, descanso).
+   */
+  async editarExercicioNoPlano(
+    exercicioNoPlanoId: string,
+    config: Partial<ConfigExercicio>
+  ): Promise<void> {
+    const campos: Record<string, unknown> = {};
+    if (config.series !== undefined) campos.seriesPlanejadas = config.series;
+    if (config.repeticoesAlvo !== undefined) campos.repeticoesAlvo = config.repeticoesAlvo;
+    if (config.cargaSugerida !== undefined) campos.cargaSugerida = config.cargaSugerida;
+    if (config.tempoDescanso !== undefined) campos.tempoDescanso = config.tempoDescanso;
+
+    await db
+      .update(exerciciosNoPlano)
+      .set(campos)
+      .where(eq(exerciciosNoPlano.id, exercicioNoPlanoId));
+
+    // Criar snapshot da ficha após modificação
+    const exResult = await db
+      .select()
+      .from(exerciciosNoPlano)
+      .where(eq(exerciciosNoPlano.id, exercicioNoPlanoId))
+      .limit(1);
+
+    if (exResult.length > 0) {
+      const dia = await db
+        .select()
+        .from(diasDeTreino)
+        .where(eq(diasDeTreino.id, exResult[0].diaId))
+        .limit(1);
+      if (dia.length > 0) {
+        await this.criarSnapshot(dia[0].fichaId);
+      }
+    }
+  }
+
+  /**
+   * Remove um exercício de um dia de treino.
+   */
+  async removerExercicioDoPlano(exercicioNoPlanoId: string): Promise<void> {
+    // Buscar o exercício para obter o diaId antes de deletar
+    const exResult = await db
+      .select()
+      .from(exerciciosNoPlano)
+      .where(eq(exerciciosNoPlano.id, exercicioNoPlanoId))
+      .limit(1);
+
+    await db
+      .delete(exerciciosNoPlano)
+      .where(eq(exerciciosNoPlano.id, exercicioNoPlanoId));
+
+    if (exResult.length > 0) {
+      const dia = await db
+        .select()
+        .from(diasDeTreino)
+        .where(eq(diasDeTreino.id, exResult[0].diaId))
+        .limit(1);
+      if (dia.length > 0) {
+        await this.criarSnapshot(dia[0].fichaId);
+      }
+    }
+  }
+
+  /**
+   * Duplica uma ficha de treino com todos os dias e exercícios.
+   * O nome da cópia recebe o sufixo " (Cópia)".
+   */
+  async duplicarFicha(fichaId: string): Promise<FichaDeTreino> {
+    const fichaOriginal = await this.obterFichaComDias(fichaId);
+    if (!fichaOriginal) throw new Error('Ficha não encontrada');
+
+    const novaFichaId = generateUUID();
+    const agora = new Date();
+
+    await db.insert(fichasDeTreino).values({
+      id: novaFichaId,
+      nome: `${fichaOriginal.nome} (Cópia)`,
+      ativa: false,
+      dataCriacao: agora,
+      dataModificacao: agora,
+      sincronizado: false,
+    });
+
+    for (const dia of fichaOriginal.dias) {
+      const novoDiaId = generateUUID();
+      await db.insert(diasDeTreino).values({
+        id: novoDiaId,
+        nome: dia.nome,
+        diaDaSemana: dia.diaDaSemana,
+        gruposMuscularesFoco: dia.gruposMuscularesFoco,
+        fichaId: novaFichaId,
+        dataModificacao: agora,
+      });
+
+      // Copiar exercícios do dia
+      const exsDoDia = await db
+        .select()
+        .from(exerciciosNoPlano)
+        .where(eq(exerciciosNoPlano.diaId, dia.id));
+
+      for (const ex of exsDoDia) {
+        await db.insert(exerciciosNoPlano).values({
+          id: generateUUID(),
+          ordem: ex.ordem,
+          seriesPlanejadas: ex.seriesPlanejadas,
+          repeticoesAlvo: ex.repeticoesAlvo,
+          cargaSugerida: ex.cargaSugerida,
+          tempoDescanso: ex.tempoDescanso,
+          exercicioId: ex.exercicioId,
+          diaId: novoDiaId,
+        });
+      }
+    }
+
+    const resultado = await db
+      .select()
+      .from(fichasDeTreino)
+      .where(eq(fichasDeTreino.id, novaFichaId))
+      .limit(1);
+
+    return resultado[0];
+  }
+
+  /**
    * Cria um snapshot JSON da ficha atual para histórico de versões.
    */
   private async criarSnapshot(fichaId: string): Promise<void> {

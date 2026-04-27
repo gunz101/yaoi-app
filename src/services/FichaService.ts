@@ -88,9 +88,15 @@ export class FichaService {
    * Sessões históricas são preservadas (fichaNome é snapshot).
    */
   async excluirFicha(fichaId: string): Promise<void> {
-    await db
-      .delete(fichasDeTreino)
-      .where(eq(fichasDeTreino.id, fichaId));
+    const { openDatabaseSync } = await import('expo-sqlite');
+    const rawDb = openDatabaseSync('yaoi.db');
+    rawDb.execSync('PRAGMA foreign_keys = OFF;');
+    // Delete exercicios_no_plano, dias_de_treino, versoes_ficha, then ficha
+    rawDb.execSync(`DELETE FROM exercicios_no_plano WHERE dia_id IN (SELECT id FROM dias_de_treino WHERE ficha_id = '${fichaId}');`);
+    rawDb.execSync(`DELETE FROM dias_de_treino WHERE ficha_id = '${fichaId}';`);
+    rawDb.execSync(`DELETE FROM versoes_ficha WHERE ficha_id = '${fichaId}';`);
+    rawDb.execSync(`DELETE FROM fichas_de_treino WHERE id = '${fichaId}';`);
+    rawDb.execSync('PRAGMA foreign_keys = ON;');
   }
 
   /**
